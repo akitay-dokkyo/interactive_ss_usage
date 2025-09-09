@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>インタラクティブ・スプレッドシート入門</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: "Friendly Sky" -->
+    <!-- Application Structure Plan: このアプリケーションは、中学生が段階的にスプレッドシートの基本を習得できるよう、3つの主要セクション（「はじめに」「計算とセル参照」「グラフの作り方」）に分かれたチュートリアル形式を採用しています。ナビゲーションで各セクションに移動でき、一直線に学び進めることも、特定の項目を復習することも可能です。特に「計算とセル参照」では、本物のスプレッドシートのように入力・計算できるシミュレーターを設置し、能動的な学習を促進します。「グラフの作り方」では、グラフの各要素をクリックすると説明が表示されるインタラクションを取り入れ、知識の定着を図ります。この構造は、静的なテキストを読むよりも高い学習効果を得るために選択されました。 -->
+    <!-- Visualization & Content Choices: 
+        1. 計算とセル参照 -> Goal: 四則演算とセル参照の仕組みを体験的に理解させる。 -> Viz/Presentation Method: HTML/CSSで作成したスプレッドシート風のグリッドと入力欄。 -> Interaction: ユーザーが数式を入力すると、JavaScriptが即座に計算結果を対応するセルに表示する。参照セルの値を変更すると、計算結果が自動で更新される。 -> Justification: 実際に手を動かすことで、数式のルールとセル参照の動的な性質を直感的に学べる。 -> Library/Method: Vanilla JS, Tailwind CSS.
+        2. 練習問題 -> Goal: 理解度を確認し、知識を定着させる。 -> Viz/Presentation Method: 問題文と入力フォーム。 -> Interaction: ユーザーが回答を入力すると、正誤を即座に判定しフィードバック（アイコンとメッセージ）を表示する。 -> Justification: ゲーム感覚で挑戦でき、即時フィードバックにより効果的な復習が可能。 -> Library/Method: Vanilla JS.
+        3. グラフの各要素 -> Goal: グラフを構成する要素の名前と役割を視覚的に結びつけて覚えさせる。 -> Viz/Presentation Method: Chart.jsで描画したサンプル折れ線グラフ。 -> Interaction: 各要素（タイトル、軸など）のボタンをクリックすると、グラフ上の対応部分がハイライトされ、役割を説明するテキストが表示される。 -> Justification: 静的な表を見るよりも、インタラクティブな操作を通じて各要素の場所と意味を能動的に関連付けられるため、記憶に残りやすい。 -> Library/Method: Chart.js, Vanilla JS.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f0f9ff;
+        }
+        .tab-button.active {
+            border-color: #3b82f6;
+            color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        .highlight {
+            transition: all 0.3s ease-in-out;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            50% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-5xl">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-blue-600">インタラクティブ・スプレッドシート入門</h1>
+            <p class="mt-2 text-slate-600">物理の実験データをまとめる準備をしよう！</p>
+        </header>
+
+        <div class="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-8">
+            <div id="tabs" class="flex flex-wrap justify-center border-b border-slate-200 mb-6">
+                <button data-tab="intro" class="tab-button text-sm sm:text-base font-semibold py-3 px-4 border-b-2 border-transparent transition duration-300 ease-in-out">はじめに</button>
+                <button data-tab="calculation" class="tab-button text-sm sm:text-base font-semibold py-3 px-4 border-b-2 border-transparent transition duration-300 ease-in-out">計算とセル参照</button>
+                <button data-tab="chart" class="tab-button text-sm sm:text-base font-semibold py-3 px-4 border-b-2 border-transparent transition duration-300 ease-in-out">グラフの作り方</button>
+            </div>
+
+            <div id="tab-content" class="min-h-[400px]">
+                
+                <div id="intro-content" class="tab-pane">
+                    <h2 class="text-2xl font-bold text-slate-700 mb-4">ようこそ！</h2>
+                    <p class="text-slate-600 leading-relaxed mb-4">
+                        このページでは、Googleスプレッドシートの基本的な使い方を学びます。<br>
+                        スプレッドシートは、数値を計算したり、データをグラフにしたりするのにとても便利なツールです。特に、理科の実験結果をまとめるときに大活躍します。
+                    </p>
+                    <div class="bg-blue-50 border-l-4 border-blue-500 text-blue-700 p-4 rounded-md" role="alert">
+                      <p class="font-bold">このアプリの使い方</p>
+                      <p>上のタブ（「計算とセル参照」「グラフの作り方」）をクリックして、各ステップに進みましょう。実際に操作を試せるコーナーで、楽しく学んでください！</p>
+                    </div>
+                </div>
+
+                <div id="calculation-content" class="tab-pane hidden">
+                    <h2 class="text-2xl font-bold text-slate-700 mb-2">1. セルへの数式入力と四則演算</h2>
+                    <p class="text-slate-600 mb-6">スプレッドシートでは、セルに数式を入力して計算ができます。数式は必ず「<code class="font-bold bg-slate-100 p-1 rounded">=</code>」（イコール）から始めます。</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                        <div class="bg-slate-50 p-4 rounded-lg">
+                            <h3 class="font-bold text-lg mb-2">四則演算の記号</h3>
+                            <ul class="space-y-2">
+                                <li><strong class="text-sky-600 text-lg font-mono">+</strong> (足し算)</li>
+                                <li><strong class="text-sky-600 text-lg font-mono">-</strong> (引き算)</li>
+                                <li><strong class="text-sky-600 text-lg font-mono">*</strong> (かけ算)</li>
+                                <li><strong class="text-sky-600 text-lg font-mono">/</strong> (割り算)</li>
+                            </ul>
+                        </div>
+                        <div class="bg-slate-50 p-4 rounded-lg">
+                            <h3 class="font-bold text-lg mb-2">やってみよう！</h3>
+                            <p class="text-sm text-slate-500 mb-2">下の入力欄に <code class="bg-slate-200 text-sm p-1 rounded">=10+5</code> と入力してみよう。</p>
+                            <div class="flex items-center gap-2">
+                                <input type="text" id="formula-input-1" class="w-full p-2 border border-slate-300 rounded-md" placeholder="例: =10+5">
+                                <div id="formula-output-1" class="w-24 h-10 flex items-center justify-center bg-white border border-slate-300 rounded-md font-bold text-lg"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h2 class="text-2xl font-bold text-slate-700 mb-2 mt-10">2. セル参照の方法</h2>
+                    <p class="text-slate-600 mb-4">数式には、セルの場所（アドレス）を使って、そのセルの値を計算に使うことができます。これを「セル参照」と呼びます。</p>
+
+                    <div class="bg-slate-50 p-6 rounded-lg">
+                        <h3 class="font-bold text-lg mb-4 text-center">インタラクティブ・スプレッドシート</h3>
+                        <div class="grid grid-cols-4 w-full max-w-md mx-auto text-center font-mono">
+                            <div class="p-2"></div>
+                            <div class="p-2 font-bold">A</div>
+                            <div class="p-2 font-bold">B</div>
+                            <div class="p-2 font-bold">C</div>
+                            <div class="p-2 font-bold self-center">1</div>
+                            <input type="number" id="cell-A1" value="10" class="p-2 border border-slate-300 rounded-md text-center">
+                            <input type="number" id="cell-B1" value="5" class="p-2 border border-slate-300 rounded-md text-center">
+                            <div id="cell-C1" class="p-2 bg-slate-200 border border-slate-400 rounded-md flex items-center justify-center">15</div>
+                        </div>
+                        <p class="text-sm text-center text-slate-500 mt-4">C1には <code class="bg-slate-200 p-1 rounded">=A1+B1</code> という数式が入っています。</p>
+                        <p class="text-center text-slate-600 mt-2">A1かB1の数字を変えると、C1の計算結果が自動で変わるのを確かめてみよう！</p>
+                    </div>
+
+                    <div class="mt-12">
+                        <h3 class="text-xl font-bold text-slate-700 mb-4">腕試し！練習問題</h3>
+                        <div class="space-y-6">
+                            <div class="bg-white p-4 rounded-lg border">
+                                <p class="font-semibold mb-2">問題1：セルに「50」と「30」の足し算の結果を表示するには、どんな数式を入れますか？</p>
+                                <div class="flex items-center gap-2">
+                                    <input type="text" id="q1-input" class="w-full md:w-1/2 p-2 border border-slate-300 rounded-md" placeholder="数式を入力">
+                                    <button id="q1-submit" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition">確認</button>
+                                    <span id="q1-feedback"></span>
+                                </div>
+                            </div>
+                             <div class="bg-white p-4 rounded-lg border">
+                                <p class="font-semibold mb-2">問題2：A1セルに「100」、B1セルに「2」が入っています。C1セルでこれらをかけ算するには？</p>
+                                <div class="flex items-center gap-2">
+                                    <input type="text" id="q2-input" class="w-full md:w-1/2 p-2 border border-slate-300 rounded-md" placeholder="数式を入力">
+                                    <button id="q2-submit" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition">確認</button>
+                                    <span id="q2-feedback"></span>
+                                </div>
+                            </div>
+                             <div class="bg-white p-4 rounded-lg border">
+                                <p class="font-semibold mb-2">問題3：A1セルに「10」、B1セルに「3」が入っています。`(A1 + 5) * B1` を計算する数式は？</p>
+                                <div class="flex items-center gap-2">
+                                    <input type="text" id="q3-input" class="w-full md:w-1/2 p-2 border border-slate-300 rounded-md" placeholder="数式を入力">
+                                    <button id="q3-submit" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition">確認</button>
+                                    <span id="q3-feedback"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="chart-content" class="tab-pane hidden">
+                    <h2 class="text-2xl font-bold text-slate-700 mb-2">3. グラフエディタの開き方</h2>
+                    <p class="text-slate-600 mb-6">実験データを視覚的に理解するために、グラフを作成してみましょう。</p>
+                    <div class="flex flex-col md:flex-row justify-around items-center text-center gap-4">
+                        <div class="flex-1">
+                            <div class="bg-sky-100 text-sky-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto text-2xl font-bold">1</div>
+                            <p class="mt-2 font-semibold">データ範囲を選ぶ</p>
+                        </div>
+                        <div class="text-slate-300 text-2xl font-light">→</div>
+                        <div class="flex-1">
+                            <div class="bg-sky-100 text-sky-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto text-2xl font-bold">2</div>
+                            <p class="mt-2 font-semibold">メニュー「挿入」</p>
+                        </div>
+                        <div class="text-slate-300 text-2xl font-light">→</div>
+                        <div class="flex-1">
+                            <div class="bg-sky-100 text-sky-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto text-2xl font-bold">3</div>
+                            <p class="mt-2 font-semibold">「グラフ」を選ぶ</p>
+                        </div>
+                    </div>
+
+                    <h2 class="text-2xl font-bold text-slate-700 mb-2 mt-12">4. グラフの各要素の名前と説明</h2>
+                    <p class="text-slate-600 mb-4">グラフには色々な構成要素があります。下のボタンを押して、それぞれの名前と役割を確認してみましょう。</p>
+
+                    <div class="bg-slate-50 rounded-lg p-4">
+                        <div class="chart-container">
+                            <canvas id="myChart"></canvas>
+                        </div>
+                        <div id="chart-info" class="mt-4 p-4 bg-white rounded-md border text-center min-h-[60px] flex items-center justify-center">
+                            <p class="text-slate-500">上のボタンをクリックして説明を表示します。</p>
+                        </div>
+                         <div class="flex flex-wrap justify-center gap-2 mt-4">
+                            <button class="chart-element-btn bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm" data-element="title">グラフのタイトル</button>
+                            <button class="chart-element-btn bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm" data-element="xAxis">横軸 (X軸)</button>
+                            <button class="chart-element-btn bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm" data-element="yAxis">縦軸 (Y軸)</button>
+                            <button class="chart-element-btn bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm" data-element="legend">凡例 (はんれい)</button>
+                            <button class="chart-element-btn bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm" data-element="dataset">データ</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const tabs = document.querySelectorAll('.tab-button');
+            const tabPanes = document.querySelectorAll('.tab-pane');
+
+            const setActiveTab = (tabId) => {
+                tabs.forEach(button => {
+                    if (button.dataset.tab === tabId) {
+                        button.classList.add('active');
+                    } else {
+                        button.classList.remove('active');
+                    }
+                });
+
+                tabPanes.forEach(pane => {
+                    if (pane.id === `${tabId}-content`) {
+                        pane.classList.remove('hidden');
+                    } else {
+                        pane.classList.add('hidden');
+                    }
+                });
+            };
+
+            tabs.forEach(button => {
+                button.addEventListener('click', () => {
+                    const tabId = button.dataset.tab;
+                    setActiveTab(tabId);
+                });
+            });
+
+            setActiveTab('intro');
+
+            const formulaInput1 = document.getElementById('formula-input-1');
+            const formulaOutput1 = document.getElementById('formula-output-1');
+            formulaInput1.addEventListener('input', () => {
+                let value = formulaInput1.value.trim();
+                if (value.startsWith('=')) {
+                    try {
+                        const result = eval(value.substring(1).replace(/[^0-9+\-*/.]/g, ''));
+                        formulaOutput1.textContent = result;
+                    } catch (e) {
+                        formulaOutput1.textContent = 'エラー';
+                    }
+                } else {
+                    formulaOutput1.textContent = '';
+                }
+            });
+
+            const cellA1 = document.getElementById('cell-A1');
+            const cellB1 = document.getElementById('cell-B1');
+            const cellC1 = document.getElementById('cell-C1');
+            const updateCellC1 = () => {
+                const valA1 = parseFloat(cellA1.value) || 0;
+                const valB1 = parseFloat(cellB1.value) || 0;
+                cellC1.textContent = valA1 + valB1;
+            };
+            cellA1.addEventListener('input', updateCellC1);
+            cellB1.addEventListener('input', updateCellC1);
+            updateCellC1();
+
+            const createFeedback = (isCorrect) => {
+                const icon = document.createElement('span');
+                icon.textContent = isCorrect ? '✅' : '❌';
+                icon.className = 'text-xl';
+                return icon;
+            };
+            
+            document.getElementById('q1-submit').addEventListener('click', () => {
+                const answer = document.getElementById('q1-input').value.replace(/\s/g, '');
+                const feedbackEl = document.getElementById('q1-feedback');
+                feedbackEl.innerHTML = '';
+                feedbackEl.appendChild(createFeedback(answer === '=50+30'));
+            });
+
+            document.getElementById('q2-submit').addEventListener('click', () => {
+                const answer = document.getElementById('q2-input').value.replace(/\s/g, '');
+                const feedbackEl = document.getElementById('q2-feedback');
+                feedbackEl.innerHTML = '';
+                feedbackEl.appendChild(createFeedback(answer.toLowerCase() === '=a1*b1'));
+            });
+
+            document.getElementById('q3-submit').addEventListener('click', () => {
+                const answer = document.getElementById('q3-input').value.replace(/\s/g, '');
+                const feedbackEl = document.getElementById('q3-feedback');
+                feedbackEl.innerHTML = '';
+                feedbackEl.appendChild(createFeedback(answer.toLowerCase() === '=(a1+5)*b1'));
+            });
+
+            const chartDescriptions = {
+                title: '<strong>グラフのタイトル:</strong> グラフ全体の内容を説明する名前です。何のグラフかがひと目でわかるようにしましょう。',
+                xAxis: '<strong>横軸 (X軸):</strong> グラフの横方向の軸です。実験では、自分で操作する量（例：おもりの重さ）を割り当てることが多いです。',
+                yAxis: '<strong>縦軸 (Y軸):</strong> グラフの縦方向の軸です。実験で測定した結果の量（例：バネの伸び）を割り当てることが多いです。',
+                legend: '<strong>凡例 (はんれい):</strong> グラフに複数のデータがある場合に、それぞれが何を表しているかを説明します。',
+                dataset: '<strong>データ:</strong> 実際の測定値（この点や線）です。これが実験の結果を示しています。',
+            };
+            
+            let myChart;
+            const chartData = {
+                labels: ['10', '20', '30', '40'],
+                datasets: [{
+                    label: 'バネの伸び (cm)',
+                    data: [2.0, 4.0, 6.0, 8.0],
+                    fill: false,
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1,
+                    pointBackgroundColor: 'rgb(75, 192, 192)',
+                    pointRadius: 5,
+                    pointHoverRadius: 8
+                }]
+            };
+
+            const chartConfig = {
+                type: 'line',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'おもりの重さ (g)' }
+                        },
+                        y: {
+                            title: { display: true, text: 'バネの伸び (cm)' },
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'おもりの重さとバネの伸びの関係',
+                            font: { size: 18 }
+                        },
+                        legend: {
+                            position: 'top',
+                        }
+                    }
+                }
+            };
+            
+            const renderChart = () => {
+                const ctx = document.getElementById('myChart').getContext('2d');
+                if (myChart) {
+                    myChart.destroy();
+                }
+                myChart = new Chart(ctx, chartConfig);
+            };
+            renderChart();
+
+            document.querySelectorAll('.chart-element-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const element = button.dataset.element;
+                    document.getElementById('chart-info').innerHTML = chartDescriptions[element];
+                    
+                    if (myChart) myChart.destroy();
+                    
+                    const newConfig = JSON.parse(JSON.stringify(chartConfig));
+                    
+                    if(element === 'title') newConfig.options.plugins.title.font.size = 22;
+                    if(element === 'xAxis') newConfig.options.scales.x.title.font = { size: 16, weight: 'bold' };
+                    if(element === 'yAxis') newConfig.options.scales.y.title.font = { size: 16, weight: 'bold' };
+                    if(element === 'legend') newConfig.options.plugins.legend.labels = { font: { size: 14, weight: 'bold' } };
+                    if(element === 'dataset') {
+                        newConfig.data.datasets[0].pointRadius = 8;
+                        newConfig.data.datasets[0].borderWidth = 4;
+                    }
+
+                    myChart = new Chart(document.getElementById('myChart').getContext('2d'), newConfig);
+
+                    setTimeout(() => {
+                        if (myChart) myChart.destroy();
+                        renderChart();
+                    }, 1500);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
